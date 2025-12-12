@@ -3,11 +3,13 @@ import numpy as np
 import sys; sys.path.append(".")
 import utils
 from feat_extractors.text_vectorizer.simple_vectorizers import CountVectorizer, TfidfVectorizer
+from feat_extractors.extractors_ensemble import ensembled_extract
 from classifiers.bagger.bagger_presets import get_bagger_model, train_bagger_model, predict_bagger_model
 
 
 if __name__ == "__main__":
-    ## Training
+    ## Training ##
+
     print("Load training dataset")
     texts_train = utils.load_cmv_data("./dataset/train.jsonl")
 
@@ -19,8 +21,9 @@ if __name__ == "__main__":
 
     vectorizer.train(df_train['o'].values.tolist() + df_train['p'].values.tolist())
 
-    x_train_o = vectorizer.extract(df_train["o"].values.tolist())
-    x_train_p = vectorizer.extract(df_train["p"].values.tolist())
+    x_train_o = ensembled_extract(df_train["o"].values.tolist(), vectorizer)
+    x_train_p = ensembled_extract(df_train["p"].values.tolist(), vectorizer)
+    # TODO: mini-batched extraction and/or training and evaluation
 
     # x_train = np.concat([x_train_o, x_train_p], axis=-1)  # 直接把楼主发言和说服者发言的向量拼起来
     x_train = x_train_p - x_train_o  # or 相减
@@ -34,15 +37,16 @@ if __name__ == "__main__":
     from datetime import datetime
     utils.save_model(model, f"./model/simple_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pkl")
 
-    ## Evaluation
+    ## Evaluation ##
+
     print("Load evaluation dataset")
     texts_test = utils.load_cmv_data("./dataset/val.jsonl")
 
     df_test = utils.parse_cmv_data(texts_test)
 
     print("Extract features")
-    x_test_o = vectorizer.extract(df_test["o"].values.tolist())  # 使用训练集上的 vectorizer
-    x_test_p = vectorizer.extract(df_test["p"].values.tolist())
+    x_test_o = ensembled_extract(df_test["o"].values.tolist(), vectorizer)  # 使用训练集上的 vectorizer
+    x_test_p = ensembled_extract(df_test["p"].values.tolist(), vectorizer)
 
     # x_test = np.concat([x_test_o, x_test_p], axis=-1)
     x_test = x_test_p - x_test_o
