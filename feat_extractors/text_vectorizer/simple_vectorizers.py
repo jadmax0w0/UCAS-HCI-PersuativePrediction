@@ -55,10 +55,10 @@ class CountVectorizer(BaseTextFeatureExtractor):
             min_df=10,
         )
     
-    def train(self, training_texts: list[str]):
+    def train(self, training_texts: list[str], **kwargs):
         self.vectorizer.fit(training_texts)
     
-    def extract(self, text: Union[str, list[str]]) -> NDArray:
+    def extract(self, text: Union[str, list[str]], **kwargs) -> NDArray:
         """
         Returns:
             vectorized texts shaped `[samples_count, feat_count]`
@@ -90,10 +90,10 @@ class TfidfVectorizer(BaseTextFeatureExtractor):
             max_features=max_feat_count,
         )
     
-    def train(self, training_texts: list[str]):
+    def train(self, training_texts: list[str], **kwargs):
         self.vectorizer.fit(training_texts)
     
-    def extract(self, text: Union[str, list[str]]) -> NDArray:
+    def extract(self, text: Union[str, list[str]], **kwargs) -> NDArray:
         """
         Returns:
             vectorized texts shaped `[samples_count, feat_count]`

@@ -8,8 +8,8 @@ from typing import Union
 
 
 class BaseTextFeatureExtractor(ABC):
-    def train(self, training_texts: list[str]):
+    def train(self, training_texts: list[str], **kwargs):
         raise NotImplementedError()
     
-    def extract(self, text: Union[str, list[str]]) -> NDArray:
+    def extract(self, text: Union[str, list[str]], **kwargs) -> NDArray:
         raise NotImplementedError()
