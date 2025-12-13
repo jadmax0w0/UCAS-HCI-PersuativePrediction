@@ -8,6 +8,9 @@ from typing import Union
 
 
 class BaseTextFeatureExtractor(ABC):
+    def trained(self) -> bool:
+        raise NotImplementedError()
+    
     def train(self, training_texts: list[str], **kwargs):
         raise NotImplementedError()
     

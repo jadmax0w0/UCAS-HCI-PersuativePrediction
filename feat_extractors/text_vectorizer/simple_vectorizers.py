@@ -54,9 +54,14 @@ class CountVectorizer(BaseTextFeatureExtractor):
             tokenizer=tokenzier,
             min_df=10,
         )
+        self._trained = False
+    
+    def trained(self):
+        return self._trained
     
     def train(self, training_texts: list[str], **kwargs):
         self.vectorizer.fit(training_texts)
+        self._trained = True
     
     def extract(self, text: Union[str, list[str]], **kwargs) -> NDArray:
         """
@@ -89,9 +94,14 @@ class TfidfVectorizer(BaseTextFeatureExtractor):
             ngram_range=ngram_range,
             max_features=max_feat_count,
         )
+        self._trained = False
+    
+    def trained(self):
+        return self._trained
     
     def train(self, training_texts: list[str], **kwargs):
         self.vectorizer.fit(training_texts)
+        self._trained = True
     
     def extract(self, text: Union[str, list[str]], **kwargs) -> NDArray:
         """
