@@ -1,9 +1,13 @@
 import numpy as np
 from numpy.typing import NDArray
 import pandas as pd
-from typing import Optional, List
+from tqdm import tqdm
+from typing import Optional, List, Literal
+
 import sys; sys.path.append(".")
 from classifiers.base_classifier import BaseClassifier
+from feat_extractors.base_extractor import BaseTextFeatureExtractor
+from feat_extractors.extractors_ensemble import ensembled_extract
 
 
 def load_cmv_data(path: str):
@@ -41,6 +45,38 @@ def parse_cmv_data(rawdata: list[dict]):
     
     samples = np.concat(samples, axis=0)
     return pd.DataFrame(samples, columns=['o', 'p', 'label'])
+
+
+def train_model(
+        model: BaseClassifier,
+        data_path: str,
+        *feat_extractors: BaseTextFeatureExtractor,
+        o_p_integrate_method: Literal['concat', 'subtract'] = 'concat',
+):
+    """
+    Args:
+        o_p_integrate_method: 怎么样处理向量化后的楼主 & 说服者发言. `"concat"` = 直接拼接, `"subtract"` = 相减
+    """
+    print("Load training dataset")
+    texts_train = load_cmv_data("./dataset/train.jsonl")
+    df_train = parse_cmv_data(texts_train)
+
+    for ext in tqdm(feat_extractors, desc="Train feature extractors", total=len(feat_extractors)):
+        ext.train(df_train['o'].values.tolist() + df_train['p'].values.tolist())
+
+    x_train_o = ensembled_extract(df_train["o"].values.tolist(), *feat_extractors)
+    x_train_p = ensembled_extract(df_train["p"].values.tolist(), *feat_extractors)
+    # TODO: mini-batched extraction and/or training and evaluation
+
+    if o_p_integrate_method == "concat":
+        x_train = np.concat([x_train_o, x_train_p], axis=-1)  # 直接把楼主发言和说服者发言的向量拼起来
+    elif o_p_integrate_method == "subtract":
+        x_train = x_train_p - x_train_o  # or 相减
+    else:
+        raise ValueError(f"Unknown original and persuasive integrate method: {o_p_integrate_method}")
+
+    y_train = df_train['label'].values.astype(int)
+    print(f"Feature extracted - x {x_train.shape}, y {y_train.shape}")
 
 
 def save_model(model: BaseClassifier, path: str):

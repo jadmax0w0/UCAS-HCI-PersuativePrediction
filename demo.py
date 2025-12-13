@@ -1,7 +1,7 @@
 import numpy as np
 
 import sys; sys.path.append(".")
-import utils
+import pipeline
 from feat_extractors.text_vectorizer.simple_vectorizers import CountVectorizer, TfidfVectorizer
 from feat_extractors.extractors_ensemble import ensembled_extract
 from classifiers.bagger.bagger_presets import get_bagger_model, train_bagger_model, predict_bagger_model
@@ -11,9 +11,9 @@ if __name__ == "__main__":
     ## Training ##
 
     print("Load training dataset")
-    texts_train = utils.load_cmv_data("./dataset/train.jsonl")
+    texts_train = pipeline.load_cmv_data("./dataset/train.jsonl")
 
-    df_train = utils.parse_cmv_data(texts_train)
+    df_train = pipeline.parse_cmv_data(texts_train)
 
     print("Extract features")
     # vectorizer = CountVectorizer(max_feat_count=2000)  # 效果不好
@@ -35,14 +35,14 @@ if __name__ == "__main__":
     train_bagger_model(model, x_train, y_train)
 
     from datetime import datetime
-    utils.save_model(model, f"./model/simple_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pkl")
+    pipeline.save_model(model, f"./model/simple_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pkl")
 
     ## Evaluation ##
 
     print("Load evaluation dataset")
-    texts_test = utils.load_cmv_data("./dataset/val.jsonl")
+    texts_test = pipeline.load_cmv_data("./dataset/val.jsonl")
 
-    df_test = utils.parse_cmv_data(texts_test)
+    df_test = pipeline.parse_cmv_data(texts_test)
 
     print("Extract features")
     x_test_o = ensembled_extract(df_test["o"].values.tolist(), vectorizer)  # 使用训练集上的 vectorizer
