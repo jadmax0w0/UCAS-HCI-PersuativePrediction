@@ -2,12 +2,15 @@ import numpy as np
 from numpy.typing import NDArray
 import pandas as pd
 from tqdm import tqdm
-from typing import Optional, List, Literal, Union
+from typing import Optional, List, Literal, Union, Any
 from sklearn.metrics import classification_report
 
 import sys; sys.path.append(".")
 from classifiers.base_classifier import BaseClassifier
 from feat_extractors.base_extractor import BaseTextFeatureExtractor
+import feat_extractors.cialdini_extractor as Cialdini
+from feat_extractors.cialdini_extractor import CialdiniFeatureExtractor
+from feat_extractors.bert_extractor import BertTextFeatureExtractor
 from feat_extractors.extractors_ensemble import ensembled_extract
 
 
@@ -59,13 +62,14 @@ def parse_cmv_data(rawdata: list[dict], max_char_count: Optional[int] = None, ma
 def train_model(
         model: BaseClassifier,
         data_path: Optional[str],
-        *feat_extractors: BaseTextFeatureExtractor,
-        o_p_integrate_method: Literal['concat', 'subtract'] = 'concat',
+        cialdini_extractor: Union[CialdiniFeatureExtractor, str],
+        dim10_extractor: Any,  # TODO: implement dim 10 extractor
+        bert_extractor: BertTextFeatureExtractor,
         model_save_path: Optional[str] = None,
 ):
     """
     Args:
-        o_p_integrate_method: 怎么样处理向量化后的楼主 & 说服者发言. `"concat"` = 直接拼接, `"subtract"` = 相减
+        cialdini_extractor: 给定路径，则从路径读取标注好的特征；给定 extractor, 则调用 extractor
     Returns:
         tuple: (trained model, trained feat. extractors)
     """
@@ -74,18 +78,26 @@ def train_model(
     texts_train = load_cmv_data(data_path)
     df_train = parse_cmv_data(texts_train, max_char_count=200, max_data_count=500)  # TODO: 上量 & 解决 bert 输入串长度问题
 
-    for ext in tqdm(feat_extractors, desc="Train feature extractors", total=len(feat_extractors)):
-        ext.train(df_train['o'].values.tolist() + df_train['p'].values.tolist())
-
-    x_train_o = ensembled_extract(df_train["o"].values.tolist(), *feat_extractors)
-    x_train_p = ensembled_extract(df_train["p"].values.tolist(), *feat_extractors)
-
-    if o_p_integrate_method == "concat":
-        x_train = np.concat([x_train_o, x_train_p], axis=-1)  # 直接把楼主发言和说服者发言的向量拼起来
-    elif o_p_integrate_method == "subtract":
-        x_train = x_train_p - x_train_o  # or 相减
+    print("Prepare features")
+    # Cialdini feats
+    if isinstance(cialdini_extractor, CialdiniFeatureExtractor):
+        p_feat_cialdini = cialdini_extractor.extract(df_train["p"].values.tolist())
     else:
-        raise ValueError(f"Unknown original and persuasive integrate method: {o_p_integrate_method}")
+        p_feat_p, p_feat_n = Cialdini.load_from_anno_file(cialdini_extractor)
+        assert p_feat_p.shape == p_feat_n.shape, f"{p_feat_p.shape=}, {p_feat_n.shape=}"
+        p_feat_cialdini = np.concat([p_feat_p, p_feat_n], axis=-1).reshape(-1, p_feat_p.shape[1])
+        p_feat_cialdini = p_feat_cialdini[:len(df_train)]
+    
+    # 10 dim feats
+    p_feat_dim10 = None  # TODO: 10 dimensional implementation
+    
+    # Bert feats
+    bert_extractor.lazy_initialization()
+    p_feat_bert = bert_extractor.extract(df_train["p"].values.tolist())
+    o_feat_bert = bert_extractor.extract(df_train["o"].values.tolist())
+
+    # Concat feats
+    x_train = np.concat([p_feat_cialdini, p_feat_bert, o_feat_bert], axis=-1)  # TODO: 10 dimensional feat
 
     y_train = df_train['label'].values.astype(int)
     print(f"Feature extracted - x {x_train.shape}, y {y_train.shape}")
@@ -98,14 +110,15 @@ def train_model(
         print(f"Model saved at {model_save_path}")
     
     print("Train complete")
-    return model, feat_extractors
+    return model
 
 
 def eval_model(
         model_path: Union[BaseClassifier, str],
         data_path: Optional[str],
-        *feat_extractors: BaseTextFeatureExtractor,
-        o_p_integrate_method: Literal['concat', 'subtract'] = 'concat',
+        cialdini_extractor: CialdiniFeatureExtractor,
+        dim10_extractor: Any,  # TODO: implement dim 10 extractor
+        bert_extractor: BertTextFeatureExtractor,
 ):
     """
     Args:
@@ -124,18 +137,28 @@ def eval_model(
     texts_test = load_cmv_data(data_path)
     df_test = parse_cmv_data(texts_test, max_char_count=200, max_data_count=500)
 
-    print("Extract features")
-    assert all(ext.trained() for ext in feat_extractors), "Not all feat. extractors are trained"
-    x_test_o = ensembled_extract(df_test["o"].values.tolist(), *feat_extractors)
-    x_test_p = ensembled_extract(df_test["p"].values.tolist(), *feat_extractors)
+    print("Prepare features")
+    # Cialdini feats
+    if isinstance(cialdini_extractor, CialdiniFeatureExtractor):
+        p_feat_cialdini = cialdini_extractor.extract(df_test["p"].values.tolist())
+    else:
+        p_feat_p, p_feat_n = Cialdini.load_from_anno_file(cialdini_extractor)
+        assert p_feat_p.shape == p_feat_n.shape, f"{p_feat_p.shape=}, {p_feat_n.shape=}"
+        p_feat_cialdini = np.concat([p_feat_p, p_feat_n], axis=-1).reshape(-1, p_feat_p.shape[1])
+        p_feat_cialdini = p_feat_cialdini[:len(df_test)]
+    
+    # 10 dim feats
+    p_feat_dim10 = None  # TODO: 10 dimensional implementation
+    
+    # Bert feats
+    p_feat_bert = bert_extractor.extract(df_test["p"].values.tolist())
+    o_feat_bert = bert_extractor.extract(df_test["o"].values.tolist())
+
+    # Concat feats
+    x_test = np.concat([p_feat_cialdini, p_feat_bert, o_feat_bert], axis=-1)  # TODO: 10 dimensional feat
 
     y_test = df_test['label'].values.astype(int)
-    if o_p_integrate_method == "concat":
-        x_test = np.concat([x_test_o, x_test_p], axis=-1)
-    elif o_p_integrate_method == "subtract":
-        x_test = x_test_p - x_test_o
-    else:
-        raise ValueError(f"Unknown original and persuasive integrate method: {o_p_integrate_method}")
+    print(f"Feature extracted - x {x_test.shape}, y {y_test.shape}")
 
     print("Model predict")
     y_pred = model.predict(x_test)
