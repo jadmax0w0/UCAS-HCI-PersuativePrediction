@@ -3,6 +3,7 @@ from numpy.typing import NDArray
 import pandas as pd
 from tqdm import tqdm
 from typing import Optional, List, Literal
+from sklearn.metrics import classification_report
 
 import sys; sys.path.append(".")
 from classifiers.base_classifier import BaseClassifier
@@ -49,16 +50,18 @@ def parse_cmv_data(rawdata: list[dict]):
 
 def train_model(
         model: BaseClassifier,
-        data_path: str,
+        data_path: Optional[str],
         *feat_extractors: BaseTextFeatureExtractor,
         o_p_integrate_method: Literal['concat', 'subtract'] = 'concat',
+        model_save_path: Optional[str] = None,
 ):
     """
     Args:
         o_p_integrate_method: 怎么样处理向量化后的楼主 & 说服者发言. `"concat"` = 直接拼接, `"subtract"` = 相减
     """
     print("Load training dataset")
-    texts_train = load_cmv_data("./dataset/train.jsonl")
+    data_path = "./dataset/train.jsonl" if data_path is None else data_path
+    texts_train = load_cmv_data(data_path)
     df_train = parse_cmv_data(texts_train)
 
     for ext in tqdm(feat_extractors, desc="Train feature extractors", total=len(feat_extractors)):
@@ -77,6 +80,54 @@ def train_model(
 
     y_train = df_train['label'].values.astype(int)
     print(f"Feature extracted - x {x_train.shape}, y {y_train.shape}")
+
+    print("Train model")
+    model.train(x_train, y_train)
+
+    if model_save_path is not None:
+        save_model(model, model_save_path)
+        print(f"Model saved at {model_save_path}")
+    
+    print("Train complete")
+
+
+def eval_model(
+        model_path: str,
+        data_path: Optional[str],
+        *feat_extractors: BaseTextFeatureExtractor,
+        o_p_integrate_method: Literal['concat', 'subtract'] = 'concat',
+):
+    """
+    Args:
+        o_p_integrate_method: 怎么样处理向量化后的楼主 & 说服者发言. `"concat"` = 直接拼接, `"subtract"` = 相减
+    Note:
+        确保 `feat_extractors` 是 `train_model()` 中训练过的那些 & 确保 `o_p_integrate_method` 与 `train_model()` 一致
+    """
+    print("Load model checkpoint")
+    model = load_model(model_path, return_only_model=True)
+
+    print("Load evaluation dataset")
+    data_path = "./dataset/val.jsonl" if data_path is None else data_path
+    texts_test = load_cmv_data(data_path)
+    df_test = parse_cmv_data(texts_test)
+
+    print("Extract features")
+    assert all(ext.trained() for ext in feat_extractors), "Not all feat. extractors are trained"
+    x_test_o = ensembled_extract(df_test["o"].values.tolist(), *feat_extractors)
+    x_test_p = ensembled_extract(df_test["p"].values.tolist(), *feat_extractors)
+
+    y_test = df_test['label'].values.astype(int)
+    if o_p_integrate_method == "concat":
+        x_test = np.concat([x_test_o, x_test_p], axis=-1)
+    elif o_p_integrate_method == "subtract":
+        x_test = x_test_p - x_test_o
+    else:
+        raise ValueError(f"Unknown original and persuasive integrate method: {o_p_integrate_method}")
+
+    print("Model predict")
+    y_pred = model.predict(x_test)
+    
+    print(classification_report(y_test, y_pred))
 
 
 def save_model(model: BaseClassifier, path: str):
