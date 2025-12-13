@@ -10,13 +10,15 @@ from feat_extractors.base_extractor import BaseTextFeatureExtractor
 
 
 class BertTextFeatureExtractor(BaseTextFeatureExtractor):
-    def __init__(self, model_path: str = "bert-base-multilingual-cased"):
+    def __init__(self, model_path: str = "bert-base-multilingual-cased", minibatch_size: Optional[int] = 128):
         super().__init__()
         self.model_path = model_path
 
         self.tokenizer = None
         self.model = None
         self.device = "cpu"
+
+        self.minibatch_size = minibatch_size
     
     def trained(self):
         return self.tokenizer is not None and self.model is not None
@@ -31,11 +33,11 @@ class BertTextFeatureExtractor(BaseTextFeatureExtractor):
             self.device = "cuda"
             self.model = self.model.to(device=self.device)
     
-    def train(self, **kwargs):
+    def train(self, *args, **kwargs):
         """Alias for `BertTextFeatureExtractor.lazy_initialization()`"""
         self.lazy_initialization()
     
-    def extract(self, text: Union[str, list[str]], minibatch_size: Optional[int] = 128, **kwargs) -> NDArray:
+    def extract(self, text: Union[str, list[str]], **kwargs) -> NDArray:
         """
         Returns:
             NDArray shaped `[n, D_bert]`, where `n` is input text count
@@ -43,7 +45,7 @@ class BertTextFeatureExtractor(BaseTextFeatureExtractor):
         if isinstance(text, str):
             text = [text]
         
-        if minibatch_size is None:
+        if self.minibatch_size is None:
             encoded_input = self.tokenizer(text, return_tensors='pt', padding=True)
             encoded_input = encoded_input.to(device=self.device)
             output = self.model(**encoded_input)
@@ -51,15 +53,16 @@ class BertTextFeatureExtractor(BaseTextFeatureExtractor):
         
         else:
             output = []
-            for s in tqdm(range(0, len(text), minibatch_size), desc="Exporting feats via Bert", total=int(np.ceil(len(text) / minibatch_size).item())):
-                t = min(len(text), s + minibatch_size)
+            for s in tqdm(range(0, len(text), self.minibatch_size), desc="Exporting feats via Bert", total=int(np.ceil(len(text) / self.minibatch_size).item())):
+                t = min(len(text), s + self.minibatch_size)
                 mb_text = text[s:t]
 
                 encoded_input = self.tokenizer(mb_text, return_tensors='pt', padding=True)
                 encoded_input = encoded_input.to(device=self.device)
                 mb_output = self.model(**encoded_input)
-                mb_output = mb_output["pooler_output"].detach().cpu().numpy()
-                output.append(mb_output)
+                mb_output_np = mb_output["pooler_output"].detach().cpu().numpy()
+                del mb_output
+                output.append(mb_output_np)
             output = np.concat(output, axis=0)
 
         return output
