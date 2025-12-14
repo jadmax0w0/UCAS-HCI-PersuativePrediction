@@ -83,7 +83,7 @@ def train_model(
     if isinstance(cialdini_extractor, CialdiniFeatureExtractor):
         p_feat_cialdini = cialdini_extractor.extract(df_train["p"].values.tolist())
     else:
-        p_feat_p, p_feat_n = Cialdini.load_from_anno_file(cialdini_extractor)
+        p_feat_p, p_feat_n = Cialdini.load_from_anno_file(cialdini_extractor, partition='train')
         assert p_feat_p.shape == p_feat_n.shape, f"{p_feat_p.shape=}, {p_feat_n.shape=}"
         p_feat_cialdini = np.concat([p_feat_p, p_feat_n], axis=-1).reshape(-1, p_feat_p.shape[1])
         p_feat_cialdini = p_feat_cialdini[:len(df_train)]
@@ -142,7 +142,7 @@ def eval_model(
     if isinstance(cialdini_extractor, CialdiniFeatureExtractor):
         p_feat_cialdini = cialdini_extractor.extract(df_test["p"].values.tolist())
     else:
-        p_feat_p, p_feat_n = Cialdini.load_from_anno_file(cialdini_extractor)
+        p_feat_p, p_feat_n = Cialdini.load_from_anno_file(cialdini_extractor, partition='val')
         assert p_feat_p.shape == p_feat_n.shape, f"{p_feat_p.shape=}, {p_feat_n.shape=}"
         p_feat_cialdini = np.concat([p_feat_p, p_feat_n], axis=-1).reshape(-1, p_feat_p.shape[1])
         p_feat_cialdini = p_feat_cialdini[:len(df_test)]
