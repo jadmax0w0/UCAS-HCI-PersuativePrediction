@@ -1,2 +1,4 @@
 *__pycache__*
 *.DS*
+*test.json
+model/
