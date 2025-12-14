@@ -7,11 +7,9 @@ from sklearn.metrics import classification_report
 
 import sys; sys.path.append(".")
 from classifiers.base_classifier import BaseClassifier
-from feat_extractors.base_extractor import BaseTextFeatureExtractor
 import feat_extractors.cialdini_extractor as Cialdini
 from feat_extractors.cialdini_extractor import CialdiniFeatureExtractor
 from feat_extractors.bert_extractor import BertTextFeatureExtractor
-from feat_extractors.extractors_ensemble import ensembled_extract
 
 
 def load_cmv_data(path: str):
@@ -66,17 +64,19 @@ def train_model(
         dim10_extractor: Any,  # TODO: implement dim 10 extractor
         bert_extractor: BertTextFeatureExtractor,
         model_save_path: Optional[str] = None,
+        extractors_save_dir: Optional[bool] = None,
 ):
     """
     Args:
         cialdini_extractor: 给定路径，则从路径读取标注好的特征；给定 extractor, 则调用 extractor
+        extractors_save_dir: 是否把 extractor 也作为 ckpt 保存，不过暂时应该用不到
     Returns:
         tuple: (trained model, trained feat. extractors)
     """
     print("Load training dataset")
     data_path = "./dataset/train.jsonl" if data_path is None else data_path
     texts_train = load_cmv_data(data_path)
-    df_train = parse_cmv_data(texts_train, max_char_count=200, max_data_count=500)  # TODO: 上量 & 解决 bert 输入串长度问题
+    df_train = parse_cmv_data(texts_train, max_char_count=100, max_data_count=300)  # TODO: 上量 & 解决 bert 输入串长度问题
 
     print("Prepare features")
     # Cialdini feats
@@ -135,7 +135,7 @@ def eval_model(
     print("Load evaluation dataset")
     data_path = "./dataset/val.jsonl" if data_path is None else data_path
     texts_test = load_cmv_data(data_path)
-    df_test = parse_cmv_data(texts_test, max_char_count=200, max_data_count=500)
+    df_test = parse_cmv_data(texts_test, max_char_count=100, max_data_count=300)
 
     print("Prepare features")
     # Cialdini feats
