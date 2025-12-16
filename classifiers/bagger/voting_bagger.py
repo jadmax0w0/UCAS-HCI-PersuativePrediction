@@ -4,6 +4,7 @@ from typing import Any
 
 import sys; sys.path.append(".")
 from classifiers.base_classifier import BaseClassifier
+from utils import log
 
 
 class VotingBagger(BaseClassifier):
@@ -51,14 +52,14 @@ class VotingBagger(BaseClassifier):
         """
         import time
         for idx, model in enumerate(self.models):
-            print(f"Training model {idx}")
+            log.info(f"Training model {idx}")
             s = time.time()
             try:
                 model.train(x, y, epochs=epochs, **kwargs)
             except AttributeError:
                 model.fit(x, y)
             t = time.time()
-            print(f"Model {idx} trained, time consumption: {(t-s):.2f}s")
+            log.info(f"Model {idx} trained, time consumption: {(t-s):.2f}s")
     
     def predict(self, x: NDArray, **kwargs):
         """
@@ -68,7 +69,7 @@ class VotingBagger(BaseClassifier):
             y: voted result across all models, shape `[n]`
         """
         # if not self.trained:
-        #     print("Not all models are trained while boosting, train them first")
+        #     log.info("Not all models are trained while boosting, train them first")
         #     return
         
         results = [model.predict(x, **kwargs) for model in self.models]

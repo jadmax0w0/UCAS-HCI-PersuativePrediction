@@ -7,6 +7,7 @@ from transformers import BertTokenizer, BertModel
 
 import sys; sys.path.append(".")
 from feat_extractors.base_extractor import BaseTextFeatureExtractor
+from utils import log
 
 
 class BertTextFeatureExtractor(BaseTextFeatureExtractor):
@@ -24,7 +25,7 @@ class BertTextFeatureExtractor(BaseTextFeatureExtractor):
         return self.tokenizer is not None and self.model is not None
     
     def lazy_initialization(self):
-        print("Loading Bert model")
+        log.info("Loading Bert model")
         self.tokenizer = BertTokenizer.from_pretrained(self.model_path)
         self.model = BertModel.from_pretrained(self.model_path)
         self.model.eval()

@@ -14,6 +14,7 @@ from feat_extractors.model_dim10.preprocess_data import preprocessText, padBatch
 from feat_extractors.model_dim10.preprocess_embedding import glove4gensim
 from feat_extractors.model_dim10.features import ExtractWordEmbeddings
 from feat_extractors.model_dim10.models.lstm import LSTMClassifier
+from utils import log
 
 
 DIMS_DEFAULT = [
@@ -65,25 +66,25 @@ class Dim10FeatureExtractor(BaseTextFeatureExtractor):
         #     return
 
         ## Train and save embeddings
-        print("Loading embedding vectors")
+        log.info("Loading embedding vectors")
         glove_input_file = embedding_corpus_path
         word2vec_output_file = os.path.join(self.embedding_dir, "glove.840B.300d.vec")
         if not os.path.exists(word2vec_output_file):
             if not os.path.exists(glove_input_file):
                 raise FileNotFoundError(f"{glove_input_file} does not exist, download a copy of this corpus or trained glove.840B.300d.vec file from https://nlp.stanford.edu/projects/glove/")
             from gensim.scripts.glove2word2vec import glove2word2vec
-            print("Training embedding vectors")
+            log.info("Training embedding vectors")
             glove2word2vec(glove_input_file, word2vec_output_file)
-            print("Filtering embedified content")
+            log.info("Filtering embedified content")
             glove4gensim(word2vec_output_file)
 
         ## Initialize tokenizer and embedding module
-        print("Initializing tokenizer and embedding layer")
+        log.info("Initializing tokenizer and embedding layer")
         self.tokenizer = TweetTokenizer().tokenize
         self.embedding = ExtractWordEmbeddings(emb_type='glove', emb_dir=self.embedding_dir)  # time consuming
 
         ## Initialize dim10 models
-        print("Initializing models for each dimension")
+        log.info("Initializing models for each dimension")
         self.models = []
         for dim_name in tqdm(self.dim_names, total=len(self.dim_names)):
             weight_file = os.path.join(self.lstm_model_dir, dim_name, "best-weights.pth")
@@ -99,7 +100,7 @@ class Dim10FeatureExtractor(BaseTextFeatureExtractor):
                     model.load_state_dict(state)
             
             self.models.append(model)
-        print(f"Initialized {len(self.models)} models")
+        log.info(f"Initialized {len(self.models)} models")
     
     @torch.no_grad()
     def _predict_one_dim(self, model, em, tokenized_sents, batch_size, device):
@@ -120,7 +121,7 @@ class Dim10FeatureExtractor(BaseTextFeatureExtractor):
             NDArray shaped `[n, 10]`, where `n` is input text count
         """
         if not self.trained():
-            print("Warning: dim10 extractor not trained yet, returning an empty array. Train dim10 extractor first")
+            log.info("Warning: dim10 extractor not trained yet, returning an empty array. Train dim10 extractor first")
             return np.empty(shape=(0, ))
         
         if isinstance(text, str):

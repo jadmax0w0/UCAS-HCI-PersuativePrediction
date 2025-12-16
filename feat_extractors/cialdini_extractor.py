@@ -5,6 +5,7 @@ from typing import Optional, Union, Literal
 
 import sys; sys.path.append(".")
 from feat_extractors.base_extractor import BaseTextFeatureExtractor
+from utils import log
 
 
 def load_from_anno_file(extracted_feat_path: str, partition: Optional[Literal['train', 'val']] = 'train'):
@@ -33,7 +34,7 @@ def load_from_anno_file(extracted_feat_path: str, partition: Optional[Literal['t
                 prefix = part1[0]  # "P"/"N"
                 main_id = part1[1:]
             except ValueError:
-                print(f"Invalid id {id_str}, skipped this item")
+                log.info(f"Invalid id {id_str}, skipped this item")
                 continue
 
             if not curr_group:
@@ -78,7 +79,7 @@ def load_from_anno_file(extracted_feat_path: str, partition: Optional[Literal['t
                     n_arrays.append(merged_array)
             
             except KeyError as ke:
-                print(f"Key error at {group[0]['id']}:\n{ke}")
+                log.info(f"Key error at {group[0]['id']}:\n{ke}")
                 continue
 
         P_matrix = np.stack(p_arrays) if p_arrays else np.empty((0, 6), dtype=np.int32)
@@ -106,7 +107,7 @@ def load_from_anno_file(extracted_feat_path: str, partition: Optional[Literal['t
                 n_arrays.append(curr_n_array)
             
             except KeyError as ke:
-                print(f"Key error at \"{item['o_title']}\":\n{ke}")
+                log.info(f"Key error at \"{item['o_title']}\":\n{ke}")
                 continue
         
         P_matrix = np.stack(p_arrays, axis=0) if p_arrays else np.empty((0, 6), dtype=np.int32)

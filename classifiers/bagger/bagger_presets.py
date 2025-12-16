@@ -14,6 +14,9 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
 
+import sys; sys.path.append(".")
+from utils import log
+
 
 LogisticRegressionArgs = dict(
     C=1.2,
@@ -165,4 +168,4 @@ def predict_bagger_model(model: VotingBagger, x_test: Union[NDArray, Tensor], y_
     y_pred = model.predict(x_test)
 
     if y_test is not None:
-        print(classification_report(y_test, y_pred))
+        log.info(classification_report(y_test, y_pred))
