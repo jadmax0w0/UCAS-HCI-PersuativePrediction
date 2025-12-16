@@ -9,6 +9,7 @@ import sys; sys.path.append(".")
 from classifiers.base_classifier import BaseClassifier
 import feat_extractors.cialdini_extractor as Cialdini
 from feat_extractors.cialdini_extractor import CialdiniFeatureExtractor
+from feat_extractors.dim10_extractor import Dim10FeatureExtractor
 from feat_extractors.bert_extractor import BertTextFeatureExtractor
 
 
@@ -61,7 +62,7 @@ def train_model(
         model: BaseClassifier,
         data_path: Optional[str],
         cialdini_extractor: Union[CialdiniFeatureExtractor, str],
-        dim10_extractor: Any,  # TODO: implement dim 10 extractor
+        dim10_extractor: Dim10FeatureExtractor,
         bert_extractor: BertTextFeatureExtractor,
         model_save_path: Optional[str] = None,
         extractors_save_dir: Optional[bool] = None,
@@ -73,11 +74,13 @@ def train_model(
     Returns:
         tuple: (trained model, trained feat. extractors)
     """
+    ## Load training data
     print("Load training dataset")
     data_path = "./dataset/train.jsonl" if data_path is None else data_path
     texts_train = load_cmv_data(data_path)
-    df_train = parse_cmv_data(texts_train, max_char_count=100, max_data_count=300)  # TODO: 上量 & 解决 bert 输入串长度问题
+    df_train = parse_cmv_data(texts_train, max_char_count=100, max_data_count=300)  # TODO: 上量
 
+    ## Get text features
     print("Prepare features")
     # Cialdini feats
     if isinstance(cialdini_extractor, CialdiniFeatureExtractor):
@@ -89,19 +92,23 @@ def train_model(
         p_feat_cialdini = p_feat_cialdini[:len(df_train)]
     
     # 10 dim feats
-    p_feat_dim10 = None  # TODO: 10 dimensional implementation
+    if not dim10_extractor.trained():
+        dim10_extractor.train()
+    p_feat_dim10 = dim10_extractor.extract(df_train["p"].values.tolist())
     
     # Bert feats
-    bert_extractor.lazy_initialization()
+    if not bert_extractor.trained():
+        bert_extractor.train()
     p_feat_bert = bert_extractor.extract(df_train["p"].values.tolist())
     o_feat_bert = bert_extractor.extract(df_train["o"].values.tolist())
 
     # Concat feats
-    x_train = np.concat([p_feat_cialdini, p_feat_bert, o_feat_bert], axis=-1)  # TODO: 10 dimensional feat
+    x_train = np.concat([p_feat_cialdini, p_feat_dim10, p_feat_bert, o_feat_bert], axis=-1)
 
     y_train = df_train['label'].values.astype(int)
     print(f"Feature extracted - x {x_train.shape}, y {y_train.shape}")
 
+    ## Train classification model
     print("Train model")
     model.train(x_train, y_train)
 
@@ -117,12 +124,14 @@ def eval_model(
         model_path: Union[BaseClassifier, str],
         data_path: Optional[str],
         cialdini_extractor: CialdiniFeatureExtractor,
-        dim10_extractor: Any,  # TODO: implement dim 10 extractor
+        dim10_extractor: Dim10FeatureExtractor,
         bert_extractor: BertTextFeatureExtractor,
 ):
     """
     Args:
         o_p_integrate_method: 怎么样处理向量化后的楼主 & 说服者发言. `"concat"` = 直接拼接, `"subtract"` = 相减
+    Returns:
+        预测结果 NDArray, shaped `[N]`, `N` 为验证集样本数
     Note:
         确保 `feat_extractors` 是 `train_model()` 中训练过的那些 & 确保 `o_p_integrate_method` 与 `train_model()` 一致
     """
@@ -132,11 +141,13 @@ def eval_model(
     else:
         model = model_path
 
+    ## Load eval data
     print("Load evaluation dataset")
     data_path = "./dataset/val.jsonl" if data_path is None else data_path
     texts_test = load_cmv_data(data_path)
     df_test = parse_cmv_data(texts_test, max_char_count=100, max_data_count=300)
 
+    # Get features
     print("Prepare features")
     # Cialdini feats
     if isinstance(cialdini_extractor, CialdiniFeatureExtractor):
@@ -148,22 +159,24 @@ def eval_model(
         p_feat_cialdini = p_feat_cialdini[:len(df_test)]
     
     # 10 dim feats
-    p_feat_dim10 = None  # TODO: 10 dimensional implementation
+    p_feat_dim10 = dim10_extractor.extract(df_test["p"].values.tolist())
     
     # Bert feats
     p_feat_bert = bert_extractor.extract(df_test["p"].values.tolist())
     o_feat_bert = bert_extractor.extract(df_test["o"].values.tolist())
 
     # Concat feats
-    x_test = np.concat([p_feat_cialdini, p_feat_bert, o_feat_bert], axis=-1)  # TODO: 10 dimensional feat
+    x_test = np.concat([p_feat_cialdini, p_feat_dim10, p_feat_bert, o_feat_bert], axis=-1)
 
     y_test = df_test['label'].values.astype(int)
     print(f"Feature extracted - x {x_test.shape}, y {y_test.shape}")
 
+    ## Prediction
     print("Model predict")
     y_pred = model.predict(x_test)
 
     print(classification_report(y_test, y_pred))
+    return y_pred
 
 
 def save_model(model: BaseClassifier, path: str):
