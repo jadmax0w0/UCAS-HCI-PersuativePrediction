@@ -9,7 +9,8 @@ from pipeline import train_model, eval_model
 if __name__ == "__main__":
     model = get_bagger_model(enable_xgb=False)
 
-    bert_ext = BertTextFeatureExtractor("/Users/youxseem/Documents/AIModels.localized/bert-base-multilingual-cased", minibatch_size=128)
+    raise NotImplementedError("看到这行报错说明你还没改掉 bert 检查点的路径, 在 main.py 里面改一下")
+    bert_ext = BertTextFeatureExtractor("/path/to/bert/ckpt", minibatch_size=128)
     cial_ext = CialdiniFeatureExtractor()  # TODO: cialdini extractor WIP
     dm10_ext = Dim10FeatureExtractor()
 

@@ -67,7 +67,7 @@ def _get_dataset_features(
 ):
     """数据集转特征 & 拼接"""
     texts = load_cmv_data(data_path)
-    df = parse_cmv_data(texts, max_char_count=100, max_data_count=300)  # TODO: 上量
+    df = parse_cmv_data(texts)  # TODO: 上量
 
     # Cialdini feats
     if isinstance(cialdini_extractor, CialdiniFeatureExtractor):
