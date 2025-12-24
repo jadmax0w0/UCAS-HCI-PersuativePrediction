@@ -58,6 +58,44 @@ def parse_cmv_data(rawdata: list[dict], max_char_count: Optional[int] = None, ma
     return pd.DataFrame(samples, columns=['o', 'p', 'label'])
 
 
+def get_custom_text_features(
+        text: Union[str, list[str]],
+        cialdini_extractor: Union[CialdiniFeatureExtractor, NDArray, None] = None,
+        dim10_extractor: Optional[Dim10FeatureExtractor] = None,
+        bert_extractor: Optional[BertTextFeatureExtractor] = None,
+):
+    if isinstance(text, str):
+        text = [text]
+    
+    feats = []
+
+    # Cialdini feats
+    if cialdini_extractor is not None:
+        if isinstance(cialdini_extractor, CialdiniFeatureExtractor):
+            raise NotImplementedError("Cialdini extractor not implemented")
+        else:
+            feat_cialdini = cialdini_extractor
+            assert len(feat_cialdini.shape) == 2 and feat_cialdini.shape[1] == 6, f"{feat_cialdini.shape=}"
+            feats.append(feat_cialdini)
+    
+    # 10 dim feats
+    if dim10_extractor is not None:
+        if not dim10_extractor.trained():
+            dim10_extractor.train()
+        feat_dim10 = dim10_extractor.extract(text)
+        feats.append(feat_dim10)
+
+    # Bert feats
+    if bert_extractor is not None:
+        if not bert_extractor.trained():
+            bert_extractor.train()
+        feat_bert = bert_extractor.extract(text)
+        feats.append(feat_bert)
+
+    # Concat feats
+    return np.concat(feats, axis=-1)
+
+
 def _get_dataset_features(
         partition: Literal['train', 'val'],
         data_path: Optional[str],

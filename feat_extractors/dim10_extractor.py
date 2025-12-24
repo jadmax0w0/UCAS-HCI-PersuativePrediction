@@ -66,17 +66,20 @@ class Dim10FeatureExtractor(BaseTextFeatureExtractor):
         #     return
 
         ## Train and save embeddings
-        log.info("Loading embedding vectors")
-        glove_input_file = embedding_corpus_path
-        word2vec_output_file = os.path.join(self.embedding_dir, "glove.840B.300d.vec")
-        if not os.path.exists(word2vec_output_file):
-            if not os.path.exists(glove_input_file):
-                raise FileNotFoundError(f"{glove_input_file} does not exist, download a copy of this corpus or trained glove.840B.300d.vec file from https://nlp.stanford.edu/projects/glove/")
-            from gensim.scripts.glove2word2vec import glove2word2vec
-            log.info("Training embedding vectors")
-            glove2word2vec(glove_input_file, word2vec_output_file)
-            log.info("Filtering embedified content")
-            glove4gensim(word2vec_output_file)
+        if (not os.path.exists(os.path.join(self.embedding_dir, "glove.840B.300d.filtered.wv.vectors.npy")) or
+                not os.path.exists(os.path.join(self.embedding_dir, "glove.840B.300d.filtered.wv"))
+        ):
+            log.info("Loading embedding vectors")
+            glove_input_file = embedding_corpus_path
+            word2vec_output_file = os.path.join(self.embedding_dir, "glove.840B.300d.vec")
+            if not os.path.exists(word2vec_output_file):
+                if not os.path.exists(glove_input_file):
+                    raise FileNotFoundError(f"{glove_input_file} does not exist, download a copy of this corpus or trained glove.840B.300d.vec file from https://nlp.stanford.edu/projects/glove/")
+                from gensim.scripts.glove2word2vec import glove2word2vec
+                log.info("Training embedding vectors")
+                glove2word2vec(glove_input_file, word2vec_output_file)
+                log.info("Filtering embedified content")
+                glove4gensim(word2vec_output_file)
 
         ## Initialize tokenizer and embedding module
         log.info("Initializing tokenizer and embedding layer")
