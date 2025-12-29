@@ -93,12 +93,13 @@ def get_prediction(user_text, persuasion_text):
     assert isinstance(model, VotingBagger)
     bert_ext.train()
     cial_ext.train()
+    dm10_ext.train()
 
     # o = input("Opinion:\n")
     # p = input("Persuasive:\n")
     # cial = input("Cialdini (split with comma)\n[Reciprocity, Consistency, Social_Proof, Authority, Scarcity, Liking]:\n")
     # cial = np.array([int(v) for v in cial.split(",")]).reshape(1, -1)
-    cial = np.array([[0,0,0,0,1,0]])
+    # cial = np.array([[0,0,0,0,1,0]])
     
     o = user_text
     p = persuasion_text
@@ -108,7 +109,7 @@ def get_prediction(user_text, persuasion_text):
     )
     p_feat = get_custom_text_features(
         text=p,
-        cialdini_extractor=cial,
+        cialdini_extractor=cial_ext,
         dim10_extractor=dm10_ext,
         bert_extractor=bert_ext,
     )
