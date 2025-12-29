@@ -130,10 +130,10 @@ class Dim10FeatureExtractor(BaseTextFeatureExtractor):
         if isinstance(text, str):
             text = [text]
         
-        tokenized = [self.tokenizer(preprocessText((t or "").lower())) for t in text]
+        tokenized = [self.tokenizer(preprocessText((t or "").lower())) for t in tqdm(text, desc="Dim10 tokenizing", total=len(text))]
 
         dims_scores = []
-        for dim_name, model in zip(self.dim_names, self.models):
+        for dim_name, model in tqdm(zip(self.dim_names, self.models), desc="Dim10 calling model", total=len(self.models)):
             scores = self._predict_one_dim(model, self.embedding, tokenized, self.B, self.device)
             try:
                 scores = np.array([v.item() for v in scores], dtype=np.float32).reshape(-1, 1)
